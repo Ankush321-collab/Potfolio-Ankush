@@ -4,7 +4,7 @@ This repository contains the source code for a personal 3D portfolio built with 
 
 Live site: [https://ankushadhikari.com.np](https://ankushadhikari.com.np)
 
-![Portfolio Preview](public/images/preview1.png)
+![Portfolio Preview](![alt text](image.png))
 
 ## Table of Contents
 
