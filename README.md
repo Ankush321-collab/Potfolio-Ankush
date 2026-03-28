@@ -2,7 +2,7 @@
 
 This repository contains the source code for a personal 3D portfolio built with React, TypeScript, Three.js, React Three Fiber, and GSAP. It includes animated page sections, a character scene, custom cursor interactions, smooth carousel for projects, and modern styling designed for a standout portfolio experience.
 
-Live site: [https://ankushadhikari.com.np](https://ankushadhikari.com.np)
+Live site: [https://potfolio-ankush.vercel.app/](https://ankushadhikari.com.np)
 
 ![Portfolio Preview](![alt text](image.png))
 
