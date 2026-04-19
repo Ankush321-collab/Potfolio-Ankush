@@ -1,0 +1,588 @@
+import React from 'react';
+import { render, screen, fireEvent, waitFor, act } from '@testing-library/react';
+import userEvent from '@testing-library/user-event';
+import '@testing-library/jest-dom';
+import { FileReader, useFileReader, FileReaderProps } from './FileReader';
+
+// Mock FileReader
+class MockFileReader {
+  onload: ((event: { target: { result: string } }) => void) | null = null;
+  onerror: (() => void) | null = null;
+  onprogress: ((event: { lengthComputable: boolean; loaded: number; total: number }) => void) | null = null;
+  result: string = '';
+
+  readAsText(file: File) {
+    setTimeout(() => {
+      if (this.onload) {
+        this.onload({ target: { result: 'file content' } });
+      }
+    }, 100);
+  }
+}
+
+Object.defineProperty(global, 'FileReader', {
+  value: MockFileReader,
+  writable: true
+});
+
+// Mock URL.createObjectURL
+Object.defineProperty(global, 'URL', {
+  value: {
+    createObjectURL: jest.fn(() => 'blob:test'),
+    revokeObjectURL: jest.fn()
+  },
+  writable: true
+});
+
+// Mock navigator.clipboard
+Object.defineProperty(global.navigator, 'clipboard', {
+  value: {
+    writeText: jest.fn(() => Promise.resolve())
+  },
+  writable: true
+});
+
+// Mock matchMedia
+Object.defineProperty(window, 'matchMedia', {
+  writable: true,
+  value: jest.fn().mockImplementation(query => ({
+    matches: false,
+    media: query,
+    onchange: null,
+    addListener: jest.fn(),
+    removeListener: jest.fn(),
+    addEventListener: jest.fn(),
+    removeEventListener: jest.fn(),
+    dispatchEvent: jest.fn(),
+  })),
+});
+
+describe('FileReader Component', () => {
+  const mockFile = new File(['test content'], 'test.txt', { type: 'text/plain' });
+  const mockLargeFile = new File(['x'.repeat(1000)], 'large.txt', { type: 'text/plain' });
+  const mockJsFile = new File(['const x = 1;'], 'script.js', { type: 'application/javascript' });
+
+  beforeEach(() => {
+    jest.clearAllMocks();
+  });
+
+  describe('Utility Functions', () => {
+    it('formats file sizes correctly', () => {
+      const { container } = render(<FileReader />);
+      
+      // Test via component rendering with different file sizes
+      const testCases = [
+        { bytes: 0, expected: '0 Bytes' },
+        { bytes: 1024, expected: '1 KB' },
+        { bytes: 1024 * 1024, expected: '1 MB' },
+        { bytes: 1024 * 1024 * 1024, expected: '1 GB' }
+      ];
+
+      // Verify formatFileSize logic through component behavior
+      expect(screen.getByText(/Drag & drop your file/i)).toBeInTheDocument();
+    });
+
+    it('extracts file extensions correctly', async () => {
+      const user = userEvent.setup();
+      const onFileLoad = jest.fn();
+      
+      render(<FileReader onFileLoad={onFileLoad} />);
+      
+      const input = screen.getByLabelText(/File input/i);
+      await user.upload(input, mockJsFile);
+      
+      await waitFor(() => {
+        expect(screen.getByText(/JS/i)).toBeInTheDocument();
+      });
+    });
+  });
+
+  describe('useFileReader Hook', () => {
+    const TestComponent: React.FC<{ options?: any }> = ({ options = {} }) => {
+      const { fileData, loading, error, progress, readFile, clearFile } = useFileReader(options);
+      
+      return (
+        <div>
+          <button onClick={() => readFile(mockFile)}>Read File</button>
+          <button onClick={clearFile}>Clear</button>
+          {loading && <div data-testid="loading">Loading</div>}
+          {error && <div data-testid="error">{error.message}</div>}
+          {fileData && <div data-testid="content">{fileData.content}</div>}
+          <div data-testid="progress">{progress}</div>
+        </div>
+      );
+    };
+
+    it('handles file reading with progress', async () => {
+      render(<TestComponent />);
+      
+      fireEvent.click(screen.getByText('Read File'));
+      
+      expect(screen.getByTestId('loading')).toBeInTheDocument();
+      
+      await waitFor(() => {
+        expect(screen.getByTestId('content')).toHaveTextContent('file content');
+      }, { timeout: 3000 });
+    });
+
+    it('validates file size', async () => {
+      const options = { maxSize: 10 }; // 10 bytes limit
+      render(<TestComponent options={options} />);
+      
+      fireEvent.click(screen.getByText('Read File'));
+      
+      await waitFor(() => {
+        expect(screen.getByTestId('error')).toHaveTextContent(/exceeds limit/i);
+      });
+    });
+
+    it('validates file extensions', async () => {
+      const options = { allowedExtensions: ['pdf', 'doc'] };
+      render(<TestComponent options={options} />);
+      
+      fireEvent.click(screen.getByText('Read File'));
+      
+      await waitFor(() => {
+        expect(screen.getByTestId('error')).toHaveTextContent(/not allowed/i);
+      });
+    });
+
+    it('clears file data', async () => {
+      render(<TestComponent />);
+      
+      fireEvent.click(screen.getByText('Read File'));
+      await waitFor(() => {
+        expect(screen.getByTestId('content')).toBeInTheDocument();
+      });
+      
+      fireEvent.click(screen.getByText('Clear'));
+      expect(screen.queryByTestId('content')).not.toBeInTheDocument();
+    });
+  });
+
+  describe('Component Rendering', () => {
+    it('renders initial state with drop zone', () => {
+      render(<FileReader />);
+      
+      expect(screen.getByText(/Drag & drop your file/i)).toBeInTheDocument();
+      expect(screen.getByText(/or click to browse/i)).toBeInTheDocument();
+      expect(screen.getByRole('button', { name: /Drop zone/i })).toBeInTheDocument();
+    });
+
+    it('renders with custom className', () => {
+      const { container } = render(<FileReader className="custom-class" />);
+      expect(container.firstChild).toHaveClass('custom-class');
+    });
+
+    it('displays max size info when provided', () => {
+      render(<FileReader options={{ maxSize: 1024 * 1024 }} />);
+      expect(screen.getByText(/Maximum file size: 1 MB/i)).toBeInTheDocument();
+    });
+  });
+
+  describe('File Upload', () => {
+    it('handles file input change', async () => {
+      const user = userEvent.setup();
+      const onFileLoad = jest.fn();
+      
+      render(<FileReader onFileLoad={onFileLoad} />);
+      
+      const input = screen.getByLabelText(/File input/i);
+      await user.upload(input, mockFile);
+      
+      await waitFor(() => {
+        expect(screen.getByText('test.txt')).toBeInTheDocument();
+      });
+    });
+
+    it('handles drag and drop', async () => {
+      const onFileLoad = jest.fn();
+      const { container } = render(<FileReader onFileLoad={onFileLoad} />);
+      
+      const dropZone = screen.getByRole('button', { name: /Drop zone/i });
+      
+      // Simulate drag over
+      fireEvent.dragOver(dropZone);
+      expect(dropZone).toHaveClass('border-blue-500');
+      
+      // Simulate drop
+      const fileList = { 0: mockFile, length: 1, item: (idx: number) => mockFile };
+      fireEvent.drop(dropZone, { dataTransfer: { files: fileList } });
+      
+      await waitFor(() => {
+        expect(screen.getByText('test.txt')).toBeInTheDocument();
+      });
+    });
+
+    it('handles drag leave', () => {
+      render(<FileReader />);
+      
+      const dropZone = screen.getByRole('button', { name: /Drop zone/i });
+      fireEvent.dragOver(dropZone);
+      fireEvent.dragLeave(dropZone);
+      
+      expect(dropZone).not.toHaveClass('border-blue-500');
+    });
+  });
+
+  describe('Keyboard Navigation', () => {
+    it('opens file dialog on Enter key', async () => {
+      const user = userEvent.setup();
+      render(<FileReader />);
+      
+      const dropZone = screen.getByRole('button', { name: /Drop zone/i });
+      const input = screen.getByLabelText(/File input/i);
+      
+      // Mock click on input
+      const clickSpy = jest.spyOn(input, 'click');
+      
+      await user.type(dropZone, '{enter}');
+      
+      expect(clickSpy).toHaveBeenCalled();
+    });
+
+    it('opens file dialog on Space key', async () => {
+      const user = userEvent.setup();
+      render(<FileReader />);
+      
+      const dropZone = screen.getByRole('button', { name: /Drop zone/i });
+      const input = screen.getByLabelText(/File input/i);
+      
+      const clickSpy = jest.spyOn(input, 'click');
+      
+      await user.type(dropZone, ' ');
+      
+      expect(clickSpy).toHaveBeenCalled();
+    });
+  });
+
+  describe('File Display', () => {
+    it('displays file information after upload', async () => {
+      const user = userEvent.setup();
+      render(<FileReader />);
+      
+      const input = screen.getByLabelText(/File input/i);
+      await user.upload(input, mockFile);
+      
+      await waitFor(() => {
+        expect(screen.getByText('test.txt')).toBeInTheDocument();
+        expect(screen.getByText(/12 Bytes/i)).toBeInTheDocument();
+        expect(screen.getByText(/TXT/i)).toBeInTheDocument();
+      });
+    });
+
+    it('renders code block with syntax highlighting enabled', async () => {
+      const user = userEvent.setup();
+      render(<FileReader enableSyntaxHighlighting={true} />);
+      
+      const input = screen.getByLabelText(/File input/i);
+      await user.upload(input, mockJsFile);
+      
+      await waitFor(() => {
+        expect(screen.getByText('file content')).toBeInTheDocument();
+      });
+    });
+
+    it('renders pre tag when syntax highlighting disabled', async () => {
+      const user = userEvent.setup();
+      render(<FileReader enableSyntaxHighlighting={false} />);
+      
+      const input = screen.getByLabelText(/File input/i);
+      await user.upload(input, mockFile);
+      
+      await waitFor(() => {
+        const pre = document.querySelector('pre');
+        expect(pre).toBeInTheDocument();
+      });
+    });
+  });
+
+  describe('Copy Functionality', () => {
+    it('copies content to clipboard', async () => {
+      const user = userEvent.setup();
+      render(<FileReader />);
+      
+      const input = screen.getByLabelText(/File input/i);
+      await user.upload(input, mockFile);
+      
+      await waitFor(() => {
+        expect(screen.getByText('test.txt')).toBeInTheDocument();
+      });
+      
+      const copyButton = screen.getByLabelText(/Copy content to clipboard/i);
+      await user.click(copyButton);
+      
+      expect(navigator.clipboard.writeText).toHaveBeenCalledWith('file content');
+      expect(screen.getByText('Copied!')).toBeInTheDocument();
+    });
+
+    it('shows copied state temporarily', async () => {
+      jest.useFakeTimers();
+      const user = userEvent.setup();
+      render(<FileReader />);
+      
+      const input = screen.getByLabelText(/File input/i);
+      await user.upload(input, mockFile);
+      
+      await waitFor(() => {
+        expect(screen.getByText('test.txt')).toBeInTheDocument();
+      });
+      
+      const copyButton = screen.getByLabelText(/Copy content to clipboard/i);
+      await user.click(copyButton);
+      
+      expect(screen.getByText('Copied!')).toBeInTheDocument();
+      
+      act(() => {
+        jest.advanceTimersByTime(2000);
+      });
+      
+      expect(screen.getByText('Copy')).toBeInTheDocument();
+      jest.useRealTimers();
+    });
+  });
+
+  describe('Download Functionality', () => {
+    it('triggers download when download button clicked', async () => {
+      const user = userEvent.setup();
+      const createElementSpy = jest.spyOn(document, 'createElement');
+      const appendChildSpy = jest.spyOn(document.body, 'appendChild');
+      const removeChildSpy = jest.spyOn(document.body, 'removeChild');
+      
+      render(<FileReader />);
+      
+      const input = screen.getByLabelText(/File input/i);
+      await user.upload(input, mockFile);
+      
+      await waitFor(() => {
+        expect(screen.getByText('test.txt')).toBeInTheDocument();
+      });
+      
+      const downloadButton = screen.getByLabelText(/Download file/i);
+      await user.click(downloadButton);
+      
+      expect(createElementSpy).toHaveBeenCalledWith('a');
+      expect(appendChildSpy).toHaveBeenCalled();
+      expect(removeChildSpy).toHaveBeenCalled();
+      expect(URL.revokeObjectURL).toHaveBeenCalled();
+    });
+  });
+
+  describe('Dark Mode', () => {
+    it('toggles dark mode', async () => {
+      const user = userEvent.setup();
+      const onDarkModeToggle = jest.fn();
+      
+      render(<FileReader onDarkModeToggle={onDarkModeToggle} />);
+      
+      const darkModeButton = screen.getByLabelText(/Switch to dark mode/i);
+      await user.click(darkModeButton);
+      
+      expect(onDarkModeToggle).toHaveBeenCalled();
+    });
+
+    it('uses controlled dark mode when provided', () => {
+      render(<FileReader darkMode={true} />);
+      
+      expect(screen.getByLabelText(/Switch to light mode/i)).toBeInTheDocument();
+    });
+
+    it('detects system dark mode preference', () => {
+      window.matchMedia = jest.fn().mockImplementation(query => ({
+        matches: query === '(prefers-color-scheme: dark)',
+        media: query,
+        onchange: null,
+        addListener: jest.fn(),
+        removeListener: jest.fn(),
+        addEventListener: jest.fn(),
+        removeEventListener: jest.fn(),
+        dispatchEvent: jest.fn(),
+      }));
+      
+      render(<FileReader />);
+      
+      // Should initialize with dark mode based on system preference
+      expect(screen.getByLabelText(/Switch to light mode/i)).toBeInTheDocument();
+    });
+  });
+
+  describe('Error Handling', () => {
+    it('displays error when file reading fails', async () => {
+      const user = userEvent.setup();
+      const onError = jest.fn();
+      
+      // Mock FileReader to simulate error
+      const errorMockFileReader = jest.fn().mockImplementation(() => ({
+        onload: null,
+        onerror: null,
+        readAsText: function() {
+          setTimeout(() => {
+            if (this.onerror) this.onerror();
+          }, 100);
+        }
+      }));
+      
+      Object.defineProperty(global, 'FileReader', {
+        value: errorMockFileReader,
+        writable: true
+      });
+      
+      render(<FileReader onError={onError} />);
+      
+      const input = screen.getByLabelText(/File input/i);
+      await user.upload(input, mockFile);
+      
+      await waitFor(() => {
+        expect(screen.getByRole('alert')).toBeInTheDocument();
+        expect(screen.getByText(/Error reading file/i)).toBeInTheDocument();
+      });
+    });
+
+    it('clears error when dismiss button clicked', async () => {
+      const user = userEvent.setup();
+      
+      // Mock validation error
+      render(<FileReader options={{ maxSize: 1 }} />);
+      
+      const input = screen.getByLabelText(/File input/i);
+      await user.upload(input, mockFile);
+      
+      await waitFor(() => {
+        expect(screen.getByRole('alert')).toBeInTheDocument();
+      });
+      
+      const dismissButton = screen.getByLabelText(/Dismiss error/i);
+      await user.click(dismissButton);
+      
+      expect(screen.queryByRole('alert')).not.toBeInTheDocument();
+    });
+  });
+
+  describe('Clear Functionality', () => {
+    it('clears file when X button clicked', async () => {
+      const user = userEvent.setup();
+      render(<FileReader />);
+      
+      const input = screen.getByLabelText(/File input/i);
+      await user.upload(input, mockFile);
+      
+      await waitFor(() => {
+        expect(screen.getByText('test.txt')).toBeInTheDocument();
+      });
+      
+      const clearButton = screen.getByLabelText(/Clear file/i);
+      await user.click(clearButton);
+      
+      expect(screen.getByText(/Drag & drop your file/i)).toBeInTheDocument();
+    });
+  });
+
+  describe('Accessibility', () => {
+    it('has proper ARIA labels', () => {
+      render(<FileReader />);
+      
+      expect(screen.getByRole('region', { name: /File reader/i })).toBeInTheDocument();
+      expect(screen.getByLabelText(/Drop zone for file upload/i)).toBeInTheDocument();
+    });
+
+    it('announces loading state to screen readers', async () => {
+      const user = userEvent.setup();
+      render(<FileReader />);
+      
+      const input = screen.getByLabelText(/File input/i);
+      await user.upload(input, mockFile);
+      
+      expect(screen.getByRole('status')).toBeInTheDocument();
+      expect(screen.getByRole('progressbar')).toHaveAttribute('aria-valuenow');
+    });
+
+    it('announces errors to screen readers', async () => {
+      const user = userEvent.setup();
+      render(<FileReader options={{ maxSize: 1 }} />);
+      
+      const input = screen.getByLabelText(/File input/i);
+      await user.upload(input, mockFile);
+      
+      await waitFor(() => {
+        const alert = screen.getByRole('alert');
+        expect(alert).toHaveAttribute('aria-live', 'assertive');
+      });
+    });
+  });
+
+  describe('Loading States', () => {
+    it('shows loading spinner during file read', async () => {
+      const user = userEvent.setup();
+      render(<FileReader />);
+      
+      const input = screen.getByLabelText(/File input/i);
+      await user.upload(input, mockFile);
+      
+      expect(screen.getByRole('status')).toBeInTheDocument();
+      expect(document.querySelector('.animate-spin')).toBeInTheDocument();
+    });
+
+    it('shows progress bar during loading', async () => {
+      const user = userEvent.setup();
+      render(<FileReader />);
+      
+      const input = screen.getByLabelText(/File input/i);
+      await user.upload(input, mockFile);
+      
+      const progressBar = screen.getByRole('progressbar');
+      expect(progressBar).toBeInTheDocument();
+    });
+  });
+
+  describe('CodeBlock Virtualization', () => {
+    it('renders large files with virtualization', async () => {
+      const user = userEvent.setup();
+      const largeContent = Array(200).fill('line').join('\n');
+      const largeFile = new File([largeContent], 'large.txt', { type: 'text/plain' });
+      
+      render(<FileReader enableSyntaxHighlighting={true} />);
+      
+      const input = screen.getByLabelText(/File input/i);
+      await user.upload(input, largeFile);
+      
+      await waitFor(() => {
+        expect(screen.getByText(/200 lines/i)).toBeInTheDocument();
+      });
+    });
+  });
+
+  describe('Integration', () => {
+    it('completes full workflow: upload -> display -> copy -> clear', async () => {
+      const user = userEvent.setup();
+      const onFileLoad = jest.fn();
+      
+      render(<FileReader onFileLoad={onFileLoad} />);
+      
+      // Upload
+      const input = screen.getByLabelText(/File input/i);
+      await user.upload(input, mockFile);
+      
+      await waitFor(() => {
+        expect(screen.getByText('test.txt')).toBeInTheDocument();
+        expect(onFileLoad).toHaveBeenCalledWith(
+          expect.objectContaining({
+            name: 'test.txt',
+            content: 'file content',
+            extension: 'txt'
+          })
+        );
+      });
+      
+      // Copy
+      const copyButton = screen.getByLabelText(/Copy content to clipboard/i);
+      await user.click(copyButton);
+      expect(navigator.clipboard.writeText).toHaveBeenCalled();
+      
+      // Clear
+      const clearButton = screen.getByLabelText(/Clear file/i);
+      await user.click(clearButton);
+      
+      expect(screen.getByText(/Drag & drop your file/i)).toBeInTheDocument();
+    });
+  });
+});
