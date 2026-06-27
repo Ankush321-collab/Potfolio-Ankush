@@ -203,7 +203,7 @@ export function buildProceduralAvatar(scene: THREE.Scene): ProceduralAvatar {
   const antTipMats: THREE.MeshStandardMaterial[] = [];
   const antGeo = new THREE.CylinderGeometry(0.02, 0.02, 0.45, 6);
   const antTipGeo = new THREE.SphereGeometry(0.045, 8, 6);
-  [-1, 1].forEach((side, i) => {
+  [-1, 1].forEach((side) => {
     const ant = mesh(antGeo, bodyMat);
     ant.position.set(side * 0.58, 0.48, -0.1);
     ant.rotation.z = side * 0.25;
