@@ -14,18 +14,11 @@
   max-width: var(--cMaxWidth);
 }
 
-.landing-circle1 {
-  top: 0%;
-  left: 0%;
-  z-index: 15;
-  position: fixed;
-  width: 300px;
-  height: 300px;
-  background-color: #22d3ee;
-  box-shadow: inset -50px 40px 50px rgba(0, 180, 180, 0.6);
-  filter: blur(60px);
-  border-radius: 50%;
-  animation: loadingCircle 5s linear infinite;
+/* ── Ambient orbs: static gradients instead of filter:blur + animation ── */
+/* These are baked into the body gradient — no extra compositing layers needed */
+.landing-circle1,
+.landing-circle2 {
+  display: none; /* removed — replaced by body::before static overlay */
 }
 
 .nav-fade {
@@ -33,45 +26,11 @@
   top: 0;
   width: 100%;
   height: 130px;
-  background-image: linear-gradient(0deg,
-      transparent,
-      var(--backgroundColor) 70%);
+  background-image: linear-gradient(0deg, transparent, var(--backgroundColor) 70%);
   pointer-events: none;
   z-index: 12;
-  opacity: 0;
+  opacity: 0.85;
   left: 0;
-}
-
-@keyframes loadingCircle {
-  0% {
-    transform: translate(-95%, -75%) rotateZ(0deg);
-  }
-
-  100% {
-    transform: translate(-95%, -75%) rotateZ(360deg);
-  }
-}
-
-.landing-circle2 {
-  top: 50%;
-  right: 0%;
-  transform: translate(calc(100% - 2px), -50%);
-  z-index: 9;
-  position: fixed;
-  display: none;
-  width: 300px;
-  height: 300px;
-  background-color: #22d3ee;
-  box-shadow: inset -50px 40px 50px rgba(0, 180, 180, 0.6);
-  filter: blur(50px);
-  border-radius: 50%;
-  animation: loadingCircle2 5s linear infinite;
-}
-
-@keyframes loadingCircle2 {
-  100% {
-    transform: translate(calc(100% - 2px), -50%) rotate(360deg);
-  }
 }
 
 .landing-video,
@@ -91,22 +50,20 @@
 
 .character-rim {
   position: absolute;
-  width: 400px;
-  height: 400px;
+  width: 480px;
+  height: 200px;
   z-index: 1;
-  background-color: #22d3ee;
-  transform: translate(-50%, 36%) scaleX(1.4);
-  box-shadow: inset 66px 35px 85px 0px rgba(0, 180, 180, 0.65);
-  filter: blur(50px);
+  /* Simple elliptical glow — no filter:blur (creates compositing layer) */
+  background: radial-gradient(ellipse, rgba(0, 245, 212, 0.55) 0%, rgba(0, 153, 255, 0.18) 50%, transparent 80%);
   border-radius: 50%;
   top: 50%;
   left: 50%;
-  transform: translate(-50%, 100%) scale(1.4);
+  transform: translate(-50%, 100%) scaleX(1.5);
   opacity: 0;
+  will-change: transform, opacity;
 }
 
 .character-model {
-  height: 80%;
   height: 80vh;
   position: absolute;
   max-width: 1920px;
@@ -117,6 +74,8 @@
   z-index: 0;
   bottom: 50px;
   pointer-events: inherit;
+  will-change: transform;
+  contain: layout;
 }
 
 .character-model::after {
@@ -149,6 +108,17 @@
   animation: backlight 3s forwards;
   animation-delay: 0.3s;
   opacity: 0;
+}
+
+@keyframes backlight {
+  0% {
+    opacity: 0;
+    transform: translate(-50%, 100%) scale(1.1);
+  }
+  100% {
+    opacity: 0.65;
+    transform: translate(-50%, 36%) scaleX(1.4);
+  }
 }
 
 .character-model canvas {
@@ -234,7 +204,7 @@
 }
 
 h2.landing-info-h2 {
-  color: #14b8a6;
+  color: var(--accentColor);
   font-size: 42px;
   width: 120%;
   margin: 0;
@@ -257,7 +227,7 @@ h2.landing-info-h2 {
   z-index: 3;
   background-image: linear-gradient(0deg,
       var(--backgroundColor) 40%,
-      rgba(0, 0, 0, 0) 110%);
+      rgba(3, 13, 26, 0) 110%);
   top: 0;
   left: 0;
 }

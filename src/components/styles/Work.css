@@ -11,10 +11,12 @@
   font-weight: 500;
   margin-top: 0;
   margin-bottom: 50px;
-}
-
-.work-section h2>span {
-  color: var(--accentColor);
+  background: linear-gradient(90deg, var(--accentColor), var(--secondaryAccent));
+  background-clip: text;
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+  color: transparent;
+  display: inline-block;
 }
 
 .work-container {
@@ -30,8 +32,10 @@
 .carousel-track-container {
   overflow: hidden;
   width: 100%;
-  border-top: 1px solid #363636;
-  border-bottom: 1px solid #363636;
+  /* Simple static gradient border lines — no animation repaint */
+  border-top: 1px solid rgba(0, 245, 212, 0.2);
+  border-bottom: 1px solid rgba(124, 58, 237, 0.2);
+  position: relative;
 }
 
 .carousel-track {
@@ -120,22 +124,25 @@
   align-items: center;
   gap: 10px;
   margin-top: 20px;
-  padding: 12px 20px;
-  background: rgba(94, 234, 212, 0.1);
-  border: 1px solid rgba(94, 234, 212, 0.3);
+  padding: 11px 20px;
+  background: rgba(0, 245, 212, 0.06);
+  border: 1px solid rgba(0, 245, 212, 0.28);
   border-radius: 8px;
   color: var(--accentColor);
   font-size: 14px;
   font-weight: 500;
   text-decoration: none;
-  transition: all 0.3s ease;
+  transition: background 0.3s ease, border-color 0.3s ease,
+              transform 0.3s ease, box-shadow 0.3s ease;
   width: fit-content;
 }
 
 .project-github-link:hover {
-  background: rgba(94, 234, 212, 0.2);
+  background: rgba(0, 245, 212, 0.12);
   border-color: var(--accentColor);
-  transform: translateY(-2px);
+  transform: translateY(-3px);
+  color: #ffffff;
+  box-shadow: 0 0 18px rgba(0, 245, 212, 0.18);
 }
 
 .project-github-link svg:last-child {
@@ -148,8 +155,7 @@
   top: 50%;
   transform: translateY(-50%);
   z-index: 10;
-  background: rgba(255, 255, 255, 0.05);
-  border: 1px solid rgba(255, 255, 255, 0.1);
+  background: rgba(5, 17, 31, 0.88);
   color: #eae5ec;
   width: 50px;
   height: 50px;
@@ -159,15 +165,16 @@
   justify-content: center;
   font-size: 22px;
   cursor: pointer;
-  transition: all 0.3s ease;
-  backdrop-filter: blur(8px);
+  transition: transform 0.3s ease, box-shadow 0.3s ease,
+              border-color 0.3s ease, color 0.3s ease;
+  border: 1px solid rgba(255, 255, 255, 0.1);
 }
 
 .carousel-arrow:hover {
-  background: rgba(94, 234, 212, 0.15);
-  border-color: var(--accentColor);
   color: var(--accentColor);
-  box-shadow: 0 0 20px rgba(94, 234, 212, 0.15);
+  transform: translateY(-50%) scale(1.1);
+  border-color: rgba(0, 245, 212, 0.5);
+  box-shadow: 0 0 20px rgba(0, 245, 212, 0.2), 0 0 40px rgba(124, 58, 237, 0.15);
 }
 
 .carousel-arrow-left {
@@ -190,23 +197,19 @@
   width: 10px;
   height: 10px;
   border-radius: 50%;
-  border: 1px solid rgba(255, 255, 255, 0.3);
+  border: 1px solid rgba(255, 255, 255, 0.25);
   background: transparent;
   cursor: pointer;
-  transition: all 0.3s ease;
+  transition: all 0.35s cubic-bezier(0.4, 0, 0.2, 1);
   padding: 0;
+  position: relative;
 }
 
-.carousel-dot:hover {
-  border-color: var(--accentColor);
-  background: rgba(94, 234, 212, 0.2);
-}
-
-.carousel-dot-active {
-  background: var(--accentColor);
-  border-color: var(--accentColor);
-  box-shadow: 0 0 8px rgba(94, 234, 212, 0.4);
-}
+.carousel-dot:nth-child(1):hover, .carousel-dot:nth-child(1).carousel-dot-active { background: var(--accentColor); border-color: var(--accentColor); box-shadow: 0 0 10px rgba(0, 245, 212, 0.6); }
+.carousel-dot:nth-child(2):hover, .carousel-dot:nth-child(2).carousel-dot-active { background: var(--secondaryAccent); border-color: var(--secondaryAccent); box-shadow: 0 0 10px rgba(124, 58, 237, 0.6); }
+.carousel-dot:nth-child(3):hover, .carousel-dot:nth-child(3).carousel-dot-active { background: #f97316; border-color: #f97316; box-shadow: 0 0 10px rgba(249, 115, 22, 0.6); }
+.carousel-dot:nth-child(4):hover, .carousel-dot:nth-child(4).carousel-dot-active { background: #ec4899; border-color: #ec4899; box-shadow: 0 0 10px rgba(236, 72, 153, 0.6); }
+.carousel-dot:nth-child(5):hover, .carousel-dot:nth-child(5).carousel-dot-active { background: #0057ff; border-color: #0057ff; box-shadow: 0 0 10px rgba(0, 87, 255, 0.6); }
 
 /* ── Work Image (reused) ── */
 .work-image {
@@ -225,8 +228,17 @@
   min-height: 300px;
   height: auto;
   overflow: hidden;
-  border-radius: 8px;
-  background: rgba(255, 255, 255, 0.02);
+  border-radius: 12px;
+  background: rgba(5, 17, 31, 0.8);
+  border: 1px solid rgba(255, 255, 255, 0.07);
+  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.25);
+  transition: transform 0.35s ease, box-shadow 0.35s ease, border-color 0.35s ease;
+}
+
+.work-image-in:hover {
+  transform: translateY(-4px) scale(1.01);
+  border-color: rgba(0, 245, 212, 0.35);
+  box-shadow: 0 20px 40px rgba(0, 0, 0, 0.4), 0 0 24px rgba(0, 245, 212, 0.1);
 }
 
 .work-link {

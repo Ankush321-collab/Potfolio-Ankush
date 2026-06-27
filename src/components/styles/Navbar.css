@@ -3,14 +3,31 @@
   max-width: var(--cMaxWidth);
   width: var(--cWidth);
   justify-content: space-between;
-  padding: 20px 0px;
-  margin-bottom: -100px;
+  padding: 12px 24px;
   box-sizing: border-box;
   position: fixed;
   left: 50%;
   transform: translateX(-50%);
-  top: 0;
+  top: 15px;
   z-index: 9999;
+  background: rgba(3, 13, 26, 0.82);
+  backdrop-filter: blur(20px) saturate(180%);
+  -webkit-backdrop-filter: blur(20px) saturate(180%);
+  border-radius: 50px;
+  box-shadow: 0 8px 32px rgba(0, 0, 0, 0.45),
+              inset 0 1px 0 rgba(255, 255, 255, 0.04);
+  transition: box-shadow 0.4s ease;
+  /* Static gradient border — no animation */
+  border: 1.5px solid rgba(0, 245, 212, 0.2);
+  outline: 1px solid rgba(124, 58, 237, 0.12);
+  outline-offset: -2px;
+}
+
+.header:hover {
+  border-color: rgba(0, 245, 212, 0.42);
+  box-shadow: 0 8px 32px rgba(0, 0, 0, 0.5),
+              0 0 20px rgba(0, 245, 212, 0.08),
+              inset 0 1px 0 rgba(255, 255, 255, 0.06);
 }
 .header ul {
   font-size: 12px;
@@ -29,6 +46,29 @@
   color: #ccc;
   font-weight: 600;
   cursor: pointer;
+  position: relative;
+  transition: color 0.3s ease;
+}
+
+.header ul li::after {
+  content: "";
+  position: absolute;
+  bottom: -4px;
+  left: 0;
+  width: 0;
+  height: 2px;
+  background: linear-gradient(90deg, var(--accentColor), var(--secondaryAccent));
+  border-radius: 2px;
+  transition: width 0.35s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+.header ul li:hover {
+  color: var(--accentColor);
+  text-shadow: 0 0 12px rgba(0, 245, 212, 0.5);
+}
+
+.header ul li:hover::after {
+  width: 100%;
 }
 .navbar-connect {
   position: absolute;
@@ -47,7 +87,7 @@
 }
 @media only screen and (min-width: 500px) {
   .header {
-    padding: 20px 0px;
+    padding: 14px 28px;
   }
   .header ul {
     flex-direction: row;
@@ -68,7 +108,8 @@
 }
 @media only screen and (min-width: 1200px) {
   .header {
-    padding: 35px 0px;
+    padding: 16px 36px;
+    top: 25px;
   }
   .header ul {
     column-gap: 80px;

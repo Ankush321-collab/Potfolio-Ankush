@@ -18,8 +18,10 @@
   user-select: none;
   -webkit-user-select: none;
   -moz-user-select: none;
-  --accentColor: #5eead4;
-  --backgroundColor: #0a0e17;
+  --accentColor: #00f5d4;
+  --secondaryAccent: #7c3aed;
+  --backgroundColor: #030d1a;
+  --bgGradient: radial-gradient(ellipse at 30% 0%, #0d2137 0%, #05111f 40%, #030d1a 70%, #010a13 100%);
   --vh: 100vh;
   --vh: 100svh;
 }
@@ -40,9 +42,10 @@ body {
 a {
   color: inherit;
   text-decoration: inherit;
+  position: relative;
 }
 
-a:hover {
+a:not(.contact-social):not(.project-github-link):not([class]):hover {
   color: var(--accentColor);
 }
 
@@ -66,12 +69,47 @@ main {
 body {
   margin: 0;
   height: auto;
-  background-color: #050810;
+  background-color: var(--backgroundColor);
+  background: var(--bgGradient);
   flex-grow: 1;
   --cWidth: calc(100% - 30px);
   --cMaxWidth: 1920px;
   max-width: 100vw;
   overflow-x: hidden;
+  position: relative;
+}
+
+body::before {
+  content: "";
+  position: fixed;
+  inset: 0;
+  background-image: 
+    linear-gradient(rgba(0, 245, 212, 0.025) 1px, transparent 1px),
+    linear-gradient(90deg, rgba(0, 245, 212, 0.025) 1px, transparent 1px);
+  background-size: 60px 60px;
+  pointer-events: none;
+  z-index: 0;
+  /* static mask — no animation, no radial-gradient recompute */
+  opacity: 0.6;
+}
+/* Removed body::after — it created 3 fixed composited gradient layers */
+
+/* Custom scrollbar */
+::-webkit-scrollbar {
+  width: 8px;
+}
+
+::-webkit-scrollbar-track {
+  background: #010a13;
+}
+
+::-webkit-scrollbar-thumb {
+  background: linear-gradient(180deg, var(--accentColor), var(--secondaryAccent));
+  border-radius: 4px;
+}
+
+::-webkit-scrollbar-thumb:hover {
+  background: linear-gradient(180deg, #00f5d4, #a78bfa);
 }
 
 .main-body {
